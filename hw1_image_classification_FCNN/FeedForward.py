@@ -1,5 +1,6 @@
 """
-INSERT YOUR NAME HERE
+Nathan Butler
+butlnath@oregonstate.edu
 """
 
 from turtle import width
@@ -27,102 +28,123 @@ class SigmoidCrossEntropy:
   # Compute the cross entropy loss after sigmoid. The reason they are put into the same layer is because the gradient has a simpler form
   # logits -- batch_size x num_classes set of scores, logits[i,j] is score of class j for batch element i
   # labels -- batch_size x 1 vector of integer label id (0,1) where labels[i] is the label for batch element i
-  #
-  # TODO: Output should be a positive scalar value equal to the average cross entropy loss after sigmoid
+  
+  # Output should be a positive scalar value equal to the average cross entropy loss after sigmoid
   def forward(self, logits, labels):
-    raise Exception('Student error: You haven\'t implemented the forward pass for SigmoidCrossEntropy yet.')
+    self.logits = logits
+    self.labels = labels
+    self.sigmoid_output = 1 / (1 + np.exp(-logits))
+    self.loss = -np.mean(labels * np.log(self.sigmoid_output + 1e-15) + (1 - labels) * np.log(1 - self.sigmoid_output + 1e-15))
+    return self.loss
 
-
-  # TODO: Compute the gradient of the cross entropy loss with respect to the the input logits
+  # Compute the gradient of the cross entropy loss with respect to the input logits
   def backward(self):
-    raise Exception('Student error: You haven\'t implemented the backward pass for SigmoidCrossEntropy yet.')
-
+    grad = self.sigmoid_output - self.labels
+    return grad
 
 
 class ReLU:
 
-  # TODO: Compute ReLU(input) element-wise
+  # Compute ReLU(input) element-wise
   def forward(self, input):
-    raise Exception('Student error: You haven\'t implemented the forward pass for ReLU yet.')
+    self.input = input
+    return np.maximum(0, input)
       
-  # TODO: Given dL/doutput, return dL/dinput
+  # Given dL/doutput, return dL/dinput
   def backward(self, grad):
-    raise Exception('Student error: You haven\'t implemented the backward pass for ReLU yet.')
+    grad_input = grad.copy()
+    grad_input[self.input <= 0] = 0
+    return grad_input
 
   # No parameters so nothing to do during a gradient descent step
-  def step(self,step_size, momentum = 0, weight_decay = 0):
+  def step(self, step_size, momentum=0, weight_decay=0):
     return
 
 
 class LinearLayer:
 
-  # TODO: Initialize our layer with (input_dim, output_dim) weight matrix and a (1,output_dim) bias vector
+  # Initialize our layer with (input_dim, output_dim) weight matrix and a (1,output_dim) bias vector
   def __init__(self, input_dim, output_dim):
-    raise Exception('Student error: You haven\'t implemented the init for LinearLayer yet.')
+    self.weights = np.random.randn(input_dim, output_dim) #TODO* 0.01
+    self.bias = np.zeros((1, output_dim))
+    self.input = None
+    self.grad_weights = None
+    self.grad_bias = None
+    self.velocity_weights = np.zeros_like(self.weights)
+    self.velocity_bias = np.zeros_like(self.bias)
     
-  # TODO: During the forward pass, we simply compute XW+b
+  # During the forward pass, we simply compute XW+b
   def forward(self, input):
-    raise Exception('Student error: You haven\'t implemented the forward pass for LinearLayer yet.')
+    self.input = input
+    return np.dot(input, self.weights) + self.bias
 
-
-  # TODO: Backward pass inputs:
+  # Backward pass inputs:
   #
-  # grad dL/dZ -- For a batch size of n, grad is a (n x output_dim) matrix where 
-  #         the i'th row is the gradient of the loss of example i with respect 
-  #         to z_i (the output of this layer for example i)
+  # grad dL/dZ -- For a batch size of n, grad is a (n x output_dim) matrix where the i'th row is the gradient of the loss of example i with respect to z_i (the output of this layer for example i)
 
   # Computes and stores:
   #
-  # self.grad_weights dL/dW --  A (input_dim x output_dim) matrix storing the gradient
-  #                       of the loss with respect to the weights of this layer. 
-  #                       This is an summation over the gradient of the loss of
-  #                       each example with respect to the weights.
+  # self.grad_weights dL/dW --  A (input_dim x output_dim) matrix storing the gradient of the loss with respect to the weights of this layer. This is an summation over the gradient of the loss of each example with respect to the weights.
   #
-  # self.grad_bias dL/dZ--     A (1 x output_dim) matrix storing the gradient
-  #                       of the loss with respect to the bias of this layer. 
-  #                       This is an summation over the gradient of the loss of
-  #                       each example with respect to the bias.
+  # self.grad_bias dL/dZ--     A (1 x output_dim) matrix storing the gradient of the loss with respect to the bias of this layer. This is an summation over the gradient of the loss of each example with respect to the bias.
   
   # Return Value:
   #
-  # grad_input dL/dX -- For a batch size of n, grad_input is a (n x input_dim) matrix where
-  #               the i'th row is the gradient of the loss of example i with respect 
-  #               to x_i (the input of this layer for example i) 
+  # grad_input dL/dX -- For a batch size of n, grad_input is a (n x input_dim) matrix where the i'th row is the gradient of the loss of example i with respect to x_i (the input of this layer for example i) 
 
   def backward(self, grad):
-    raise Exception('Student error: You haven\'t implemented the backward pass for LinearLayer yet.')
-    
+    batch_size = self.input.shape[0]
+    self.grad_weights = np.dot(self.input.T, grad) / batch_size # TODO batch_size?
+    self.grad_bias = np.sum(grad, axis=0, keepdims=True) / batch_size # TODO batch_size?
+    grad_input = np.dot(grad, self.weights.T)
+    return grad_input
 
   ######################################################
   # Q2 Implement SGD with Weight Decay
   ######################################################  
   def step(self, step_size, momentum = 0.8, weight_decay = 0.0):
-  # TODO: Implement the step
-    raise Exception('Student error: You haven\'t implemented the step for LinearLayer yet.')
-
-
-
-
+    self.velocity_weights = momentum * self.velocity_weights - step_size * (self.grad_weights + weight_decay * self.weights)
+    self.velocity_bias = momentum * self.velocity_bias - step_size * (self.grad_bias + weight_decay * self.bias)
+    self.weights += self.velocity_weights
+    self.bias += self.velocity_bias
 
 
 ######################################################
 # Q4 Implement Evaluation for Monitoring Training
 ###################################################### 
 
-# TODO: Given a model, X/Y dataset, and batch size, return the average cross-entropy loss and accuracy over the set
+# Given a model, X/Y dataset, and batch size, return the average cross-entropy loss and accuracy over the set
 def evaluate(model, X_val, Y_val, batch_size):
-  raise Exception('Student error: You haven\'t implemented the step for evaluate function.')
+  num_examples = X_val.shape[0]
+  total_loss = 0
+  total_correct = 0
+
+  for i in range(0, num_examples, batch_size):
+    X_batch = X_val[i:i+batch_size]
+    Y_batch = Y_val[i:i+batch_size]
+
+    logits = model.forward(X_batch)
+    loss = SigmoidCrossEntropy().forward(logits, Y_batch)
+    total_loss += loss * X_batch.shape[0]
+
+    predictions = (logits > 0.5).astype(int)
+    total_correct += np.sum(predictions == Y_batch)
+
+  avg_loss = total_loss / num_examples
+  accuracy = total_correct / num_examples
+
+  return avg_loss, accuracy
 
 
 def main():
 
-  # TODO: Set optimization parameters (NEED TO SUPPLY THESE)
-  batch_size = 
-  max_epochs = 
-  step_size = 
+  # NOTE: Set optimization parameters (NEED TO SUPPLY THESE)
+  batch_size = 64
+  max_epochs = 100
+  step_size = 0.01
 
-  number_of_layers = 
-  width_of_layers = 
+  number_of_layers = 3
+  width_of_layers = 3
   weight_decay = 0.0
   momentum = 0.8
 
@@ -233,7 +255,11 @@ class FeedForwardNeuralNetwork:
     if num_layers == 1:
       self.layers = [LinearLayer(input_dim, output_dim)]
     else:
-    # TODO: Please create a network with hidden layers based on the parameters
+    # NOTE: Please create a network with hidden layers based on the parameters
+      self.layers = [LinearLayer(input_dim, hidden_dim)]
+      for _ in range(num_layers-2):
+        self.layers.append(LinearLayer(hidden_dim, hidden_dim))
+      self.layers.append(LinearLayer(hidden_dim, output_dim))
 
   def forward(self, X):
     for layer in self.layers:
