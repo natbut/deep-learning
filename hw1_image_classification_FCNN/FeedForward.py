@@ -145,7 +145,7 @@ def main():
 
   number_of_layers = 3
   width_of_layers = 3
-  weight_decay = 0.0
+  weight_decay = 0.001
   momentum = 0.8
 
 
@@ -158,7 +158,7 @@ def main():
   
   # Some helpful dimensions
   num_examples, input_dim = X_train.shape
-  output_dim = 1 # number of class labels -1 for sigmoid loss
+  output_dim = 1 # TODO number of class labels -1 for sigmoid loss
 
 
   # Build a network with input feature dimensions, output feature dimension,
@@ -171,26 +171,34 @@ def main():
   accs = []
   val_accs = []
   
-
-  raise Exception('Student error: You haven\'t implemented the training loop yet.')
-  
+  loss_fn = SigmoidCrossEntropy()
   # Q2 TODO: For each epoch below max epochs
-
+  for ep in range(max_epochs):
     # Scramble order of examples
+    indices = np.random.permutation(X_train.shape[0])
 
     # for each batch in data:
+    for batch in range(X_train.shape[0] // batch_size):
 
       # Gather batch
+      X_batch = X_train[indices[batch*batch_size:(batch+1)*batch_size]]
+      Y_batch = Y_train[indices[batch*batch_size:(batch+1)*batch_size]]
 
       # Compute forward pass
+      logits = net.forward(X_batch)
 
       # Compute loss
+      loss = loss_fn.forward(logits, Y_batch)
 
       # Backward loss and networks
+      loss_fn.backward()
+      net.backward(loss)
 
       # Take optimizer step
+      net.step(step_size, momentum, weight_decay)
 
       # Book-keeping for loss / accuracy
+      losses.append(loss)
   
     # Evaluate performance on test.
     _, tacc = evaluate(net, X_test, Y_test, batch_size)
@@ -205,7 +213,7 @@ def main():
     # vacc -- testing accuracy this epoch
     ###############################################################
     
-    #logging.info("[Epoch {:3}]   Loss:  {:8.4}     Train Acc:  {:8.4}%      Val Acc:  {:8.4}%".format(i,epoch_avg_loss, epoch_avg_acc, vacc*100))
+    logging.info("[Epoch {:3}]   Loss:  {:8.4}     Train Acc:  {:8.4}%      Val Acc:  {:8.4}%".format(ep,epoch_avg_loss, epoch_avg_acc, vacc*100))
 
     
   ###############################################################
@@ -258,8 +266,10 @@ class FeedForwardNeuralNetwork:
     # NOTE: Please create a network with hidden layers based on the parameters
       self.layers = [LinearLayer(input_dim, hidden_dim)]
       for _ in range(num_layers-2):
+        self.layers.append(ReLU())
         self.layers.append(LinearLayer(hidden_dim, hidden_dim))
       self.layers.append(LinearLayer(hidden_dim, output_dim))
+    # self.layers.append(SigmoidCrossEntropy())
 
   def forward(self, X):
     for layer in self.layers:
