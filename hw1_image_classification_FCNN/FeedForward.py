@@ -3,14 +3,17 @@ Nathan Butler
 butlnath@oregonstate.edu
 """
 
-from turtle import width
-import numpy as np
 import pickle
-import matplotlib.pyplot as plt
+from turtle import width
+
 import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
+
 font = {'weight' : 'normal','size'   : 22}
 matplotlib.rc('font', **font)
 import logging
+
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
     level=logging.INFO,
@@ -37,7 +40,7 @@ class SigmoidCrossEntropy:
     self.loss = -np.mean(labels * np.log(self.sigmoid_output + 1e-15) + (1 - labels) * np.log(1 - self.sigmoid_output + 1e-15))
     return self.loss
 
-  # Compute the gradient of the cross entropy loss with respect to the input logits
+  # TODO Compute the gradient of the cross entropy loss with respect to the input logits
   def backward(self):
     grad = self.sigmoid_output - self.labels
     return grad
@@ -54,6 +57,7 @@ class ReLU:
   def backward(self, grad):
     grad_input = grad.copy()
     grad_input[self.input <= 0] = 0
+    grad_input[self.input > 0] = 1
     return grad_input
 
   # No parameters so nothing to do during a gradient descent step
@@ -65,17 +69,19 @@ class LinearLayer:
 
   # Initialize our layer with (input_dim, output_dim) weight matrix and a (1,output_dim) bias vector
   def __init__(self, input_dim, output_dim):
-    self.weights = np.random.randn(input_dim, output_dim) #TODO* 0.01
+    self.weights = (np.random.randn(input_dim, output_dim) + 1)*0.1
     self.bias = np.zeros((1, output_dim))
     self.input = None
     self.grad_weights = None
     self.grad_bias = None
+    # TODO Do something with these
     self.velocity_weights = np.zeros_like(self.weights)
     self.velocity_bias = np.zeros_like(self.bias)
     
   # During the forward pass, we simply compute XW+b
   def forward(self, input):
     self.input = input
+    print("LAYER WEIGHTS: ", self.weights)
     return np.dot(input, self.weights) + self.bias
 
   # Backward pass inputs:
@@ -105,6 +111,7 @@ class LinearLayer:
   def step(self, step_size, momentum = 0.8, weight_decay = 0.0):
     self.velocity_weights = momentum * self.velocity_weights - step_size * (self.grad_weights + weight_decay * self.weights)
     self.velocity_bias = momentum * self.velocity_bias - step_size * (self.grad_bias + weight_decay * self.bias)
+    # print("VELOCITY WEIGHTS: ", self.velocity_weights)
     self.weights += self.velocity_weights
     self.bias += self.velocity_bias
 
@@ -140,26 +147,26 @@ def main():
 
   # NOTE: Set optimization parameters (NEED TO SUPPLY THESE)
   batch_size = 64
-  max_epochs = 100
-  step_size = 0.01
+  max_epochs = 10
+  step_size = 0.001
 
   number_of_layers = 3
-  width_of_layers = 3
-  weight_decay = 0.001
+  width_of_layers = 16
+  weight_decay = 0.0001
   momentum = 0.8
-
 
   # Load data
   data = pickle.load(open('cifar_2class_py3.p', 'rb'))
-  X_train = data['train_data']
+  X_train = data['train_data'] / 255.0
   Y_train = data['train_labels']
-  X_test = data['test_data']
+  X_test = data['test_data'] / 255.0
   Y_test = data['test_labels']
   
   # Some helpful dimensions
   num_examples, input_dim = X_train.shape
   output_dim = 1 # TODO number of class labels -1 for sigmoid loss
 
+  print(f"X_train shape: {X_train.shape} | Input dim: {input_dim} \n Datapt: \n {X_train[66]} \n Label: {Y_train[66]}")
 
   # Build a network with input feature dimensions, output feature dimension,
   # hidden dimension, and number of layers as specified below. You can edit this as you please.
@@ -174,37 +181,49 @@ def main():
   loss_fn = SigmoidCrossEntropy()
   # Q2 TODO: For each epoch below max epochs
   for ep in range(max_epochs):
+    
     # Scramble order of examples
     indices = np.random.permutation(X_train.shape[0])
-
+    epoch_loss = 0
+    epoch_correct = 0
+    
     # for each batch in data:
     for batch in range(X_train.shape[0] // batch_size):
 
       # Gather batch
       X_batch = X_train[indices[batch*batch_size:(batch+1)*batch_size]]
       Y_batch = Y_train[indices[batch*batch_size:(batch+1)*batch_size]]
-
+      
       # Compute forward pass
       logits = net.forward(X_batch)
-
       # Compute loss
       loss = loss_fn.forward(logits, Y_batch)
 
+      # print(f"Logits: {logits}, \nY: {Y_batch} \nLoss: {loss}")
+    
       # Backward loss and networks
-      loss_fn.backward()
-      net.backward(loss)
+      grad = loss_fn.backward()
+      net.backward(grad)
 
       # Take optimizer step
       net.step(step_size, momentum, weight_decay)
 
       # Book-keeping for loss / accuracy
       losses.append(loss)
+      epoch_loss += loss * X_batch.shape[0]
+      predictions = (logits > 0.5).astype(int)
+      epoch_correct += np.sum(predictions == Y_batch)
+      accs.append(np.mean(predictions == Y_batch))
   
     # Evaluate performance on test.
-    _, tacc = evaluate(net, X_test, Y_test, batch_size)
-    print(tacc)
+    tloss, tacc = evaluate(net, X_test, Y_test, batch_size)
+    val_losses.append(tloss)
+    val_accs.append(tacc)
 
-    
+    # Calculate epoch averages
+    epoch_avg_loss = epoch_loss / X_train.shape[0]
+    epoch_avg_acc = epoch_correct / X_train.shape[0]
+
     ###############################################################
     # Print some stats about the optimization process after each epoch
     ###############################################################
@@ -213,7 +232,7 @@ def main():
     # vacc -- testing accuracy this epoch
     ###############################################################
     
-    logging.info("[Epoch {:3}]   Loss:  {:8.4}     Train Acc:  {:8.4}%      Val Acc:  {:8.4}%".format(ep,epoch_avg_loss, epoch_avg_acc, vacc*100))
+    logging.info("[Epoch {:3}]   Loss:  {:8.4}     Train Acc:  {:8.4}%      Val Acc:  {:8.4}%".format(ep, epoch_avg_loss, epoch_avg_acc*100, tacc*100))
 
     
   ###############################################################
@@ -268,7 +287,10 @@ class FeedForwardNeuralNetwork:
       for _ in range(num_layers-2):
         self.layers.append(ReLU())
         self.layers.append(LinearLayer(hidden_dim, hidden_dim))
+      self.layers.append(ReLU())
       self.layers.append(LinearLayer(hidden_dim, output_dim))
+      self.layers.append(ReLU())
+      
     # self.layers.append(SigmoidCrossEntropy())
 
   def forward(self, X):
