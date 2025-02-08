@@ -151,7 +151,7 @@ def main():
   step_size = 0.001
 
   number_of_layers = 5
-  width_of_layers = 256
+  width_of_layers = 128
   weight_decay = 0.00001
   momentum = 0.8 #0.8
 
