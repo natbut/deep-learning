@@ -146,12 +146,12 @@ def evaluate(model, X_val, Y_val, batch_size):
 def main():  
 
   # NOTE: Set optimization parameters (NEED TO SUPPLY THESE)
-  batch_size = 64
+  batch_size = 256
   max_epochs = 250
   step_size = 0.001
 
   number_of_layers = 5
-  width_of_layers = 128
+  width_of_layers = 256
   weight_decay = 0.00001
   momentum = 0.8 #0.8
 
