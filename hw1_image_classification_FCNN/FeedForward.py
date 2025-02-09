@@ -6,10 +6,10 @@ butlnath@oregonstate.edu
 import pickle
 from turtle import width
 
-import kagglehub
+import numpy as np
+
 import matplotlib
 import matplotlib.pyplot as plt
-import numpy as np
 
 font = {'weight' : 'normal','size'   : 22}
 matplotlib.rc('font', **font)
@@ -150,7 +150,7 @@ def main():
   max_epochs = 250
   step_size = 0.001
 
-  number_of_layers = 5
+  number_of_layers = 4
   width_of_layers = 128
   weight_decay = 0.00001
   momentum = 0.8 #0.8
