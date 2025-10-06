@@ -1,1 +1,1 @@
-Oregon State University AI 535: Deep Learning assignment
+Oregon State University AI 535: Deep Learning assignments
